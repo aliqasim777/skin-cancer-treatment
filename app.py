@@ -2,20 +2,29 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
+import gdown
+import os
 
 st.title("Skin Cancer Detection App")
 st.write("Apni skin ki image upload karein taake model check kar sakay.")
 
-# Model load karna (.h5 file github par honi chahiye)
+MODEL_PATH = 'skin_cancer_detection_model.h5'
+
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model('skin_cancer_detection_model.h5')
+    if not os.path.exists(MODEL_PATH):
+        # Aap ki Google Drive file ka link/ID
+        file_id = '1_Zn8TCgtq2ZGBAmk0RoRJDyMSh374gYE'
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, MODEL_PATH, quiet=False)
+        
+    model = tf.keras.models.load_model(MODEL_PATH)
     return model
 
 try:
     model = load_model()
 except Exception as e:
-    st.warning("Model file nahi mili! Baraye meharbani 'skin_cancer_detection_model.h5' file GitHub par upload karein.")
+    st.warning(f"Model load hone mein masla hai: {e}")
     model = None
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
@@ -28,20 +37,15 @@ if uploaded_file is not None:
     if model is not None:
         st.write("Classification chal rahi hai...")
         
-        # Image ko 128x128 resize karna (jaisa model train karte waqt kiya tha)
         image = image.resize((128, 128))
         img_array = np.array(image)
         
-        # Agar image mein 4 channels (RGBA) hon toh usay 3 channels (RGB) mein convert karna
         if img_array.shape[-1] == 4:
             img_array = img_array[..., :3]
             
         img_array = np.expand_dims(img_array, axis=0)
         
-        # Prediction lena
         predictions = model.predict(img_array)
-        
-        # Classes (Benign vs Malignant)
         class_names = ['Benign (Non-Cancerous)', 'Malignant (Cancerous)']
         
         predicted_class = class_names[np.argmax(predictions)]
@@ -49,4 +53,6 @@ if uploaded_file is not None:
         
         st.success(f"Result: **{predicted_class}** (Confidence: {confidence:.2f}%)")
     else:
-        st.error("Model load nahi ho saka, is liye prediction nahi ki ja sakti.")
+        st.error("Model load nahi ho saka.")
+
+      
